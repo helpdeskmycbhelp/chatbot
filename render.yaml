@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: policy-chatbot
+    env: python
+    plan: starter       # or free for testing
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: OPENAI_API_KEY
+        sync: false     # set the real value in the Render Dashboard after creation
+      - key: OPENAI_BASE
+        value: https://api.openai.com/v1
+      - key: MODEL
+        value: gpt-4o-mini
+      - key: EMBED_MODEL
+        value: text-embedding-3-small
+      - key: TOP_K
+        value: "4"
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: kb-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
