@@ -23,33 +23,50 @@
   <footer>
     <form id="f">
       <input id="q" placeholder="Ask about the policy…" autocomplete="off" />
-      <button>Send</button>
+      <button type="submit">Send</button>
     </form>
   </footer>
 
 <script>
-// Read ?api=... from the iframe src (fallback to same origin)
 const params = new URLSearchParams(location.search);
-const API_BASE = params.get("api") || "";
+// Default to same-origin so it works when opened directly
+const API_BASE = (params.get("api") || window.location.origin).replace(/\/$/,'');
 document.getElementById('api').textContent = API_BASE ? ` · API: ${API_BASE}` : "";
 
 const log = document.getElementById('log');
 const add = (t,c)=>{const d=document.createElement('div');d.className='msg '+c;d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;};
 
-document.getElementById('f').onsubmit = async (e)=>{
+// Heads-up if KB not loaded
+(async () => {
+  try {
+    const r = await fetch(`${API_BASE}/api/kb/status`);
+    const j = await r.json();
+    if (!j.ok) add("Policy not loaded yet. Upload a .docx/.txt to /api/kb/load.", "bot");
+  } catch {}
+})();
+
+const form = document.getElementById('f');
+form.onsubmit = async (e)=>{
   e.preventDefault();
   const q = document.getElementById('q');
   const text = (q.value||"").trim(); if(!text) return;
-  add(text,'user'); q.value=''; add('…','bot');
+  add(text,'user'); q.value=''; q.focus();
+  const btn = form.querySelector('button'); btn.disabled = true;
+  add('…','bot');
   try{
-    const r = await fetch((API_BASE||"") + "/api/chat", {
+    const r = await fetch(`${API_BASE}/api/chat`, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify({message:text})
     });
     const j = await r.json();
     log.lastChild.textContent = j.reply || 'No reply.';
-  }catch{ log.lastChild.textContent = 'Network error.'; }
+  }catch{
+    log.lastChild.textContent = 'Network error.';
+  } finally {
+    btn.disabled = false;
+    q.focus();
+  }
 };
 </script>
 </body>
