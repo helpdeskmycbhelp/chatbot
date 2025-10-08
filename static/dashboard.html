@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Policy Chatbot • Admin & Chat</title>
+<style>
+  :root{--bg:#f7fafc;--card:#fff;--line:#e5e7eb;--brand:#2563eb;--text:#111827}
+  body{margin:0;background:var(--bg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{max-width:980px;margin:32px auto;padding:0 16px;display:grid;gap:16px}
+  .grid{display:grid;gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns: 360px 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+  .card h3{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:15px}
+  .card .body{padding:14px}
+  .row{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+  input[type="text"], input[type="file"]{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px}
+  button{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+  button.secondary{background:#0f766e}
+  .muted{color:#6b7280}
+  .ok{color:#059669;font-weight:600}
+  .bad{color:#dc2626;font-weight:600}
+  /* chat */
+  #log{height:420px;overflow:auto;display:flex;flex-direction:column;gap:10px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .msg{max-width:80%;padding:8px 12px;border-radius:12px}
+  .user{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+  .bot{align-self:flex-start;background:#e5e7eb;color:var(--text);border-bottom-left-radius:4px}
+  .foot{display:flex;gap:8px;margin-top:10px}
+  .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-weight:600}
+  pre{white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2 style="margin:0 0 8px">Policy Chatbot • Admin & Chat</h2>
+  <div class="muted" id="apiNote"></div>
+
+  <div class="grid">
+    <!-- Left: Admin -->
+    <div class="card">
+      <h3>Settings & Status</h3>
+      <div class="body">
+        <div class="row">
+          <input id="api" type="text" placeholder="API base (e.g., http://localhost:8000)" />
+          <button id="save">Save</button>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div>Health: <span id="health" class="muted">checking…</span></div>
+          <button id="check">Refresh</button>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div>KB loaded: <span id="kb" class="muted">checking…</span></div>
+          <div class="muted">Chunks: <span id="chunks">0</span></div>
+        </div>
+        <div class="row muted">Embed persist: <span id="persist">no</span></div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+        <form id="up" enctype="multipart/form-data" class="row" style="align-items:stretch">
+          <input type="file" name="file" accept=".docx,.txt">
+          <button type="submit" class="secondary">Upload policy</button>
+        </form>
+        <div class="muted" id="uploadMsg"></div>
+      </div>
+    </div>
+
+    <!-- Right: Chat -->
+    <div class="card">
+      <h3>Chat</h3>
+      <div class="body">
+        <div id="log"></div>
+        <div class="foot">
+          <input id="q" placeholder="Ask the policy assistant…" autocomplete="off">
+          <button id="send">Send</button>
+        </div>
+        <div style="margin-top:8px" class="muted">
+          Tips:
+          <span class="pill">“Client contacted new agent first—who owns it?”</span>
+          <span class="pill">“What evidence decides conflicts?”</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s)=>document.querySelector(s);
+const apiKey = "policy_api_base";
+const defaultAPI = "http://localhost:8000";
+const API_BASE = ()=>localStorage.getItem(apiKey) || defaultAPI;
+
+$("#api").value = API_BASE();
+$("#apiNote").textContent = "Frontend will call: " + API_BASE();
+
+function addMsg(text, who){
+  const d=document.createElement("div");
+  d.className = "msg " + (who==="user" ? "user" : "bot");
+  d.textContent = text;
+  $("#log").appendChild(d);
+  $("#log").scrollTop = $("#log").scrollHeight;
+}
+
+async function health(){
+  try{
+    const r = await fetch(API_BASE()+"/api/health");
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    $("#health").textContent = "ok";
+    $("#health").className = "ok";
+    $("#kb").textContent = j.kb_loaded ? "yes" : "no";
+    $("#kb").className = j.kb_loaded ? "ok" : "bad";
+  }catch(e){
+    $("#health").textContent = "offline";
+    $("#health").className = "bad";
+  }
+}
+
+async function status(){
+  try{
+    const r = await fetch(API_BASE()+"/api/kb/status");
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    $("#chunks").textContent = j.chunks || 0;
+    $("#persist").textContent = j.persisted ? "yes" : "no";
+  }catch(e){
+    $("#chunks").textContent = "0";
+    $("#persist").textContent = "no";
+  }
+}
+
+$("#check").onclick = ()=>{ health(); status(); };
+
+$("#save").onclick = ()=>{
+  localStorage.setItem(apiKey, $("#api").value.trim() || defaultAPI);
+  $("#apiNote").textContent = "Frontend will call: " + API_BASE();
+  health(); status();
+};
+
+$("#up").onsubmit = async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  $("#uploadMsg").textContent = "Uploading…";
+  try{
+    const r = await fetch(API_BASE()+"/api/kb/load", { method:"POST", body:fd });
+    const t = await r.text();
+    $("#uploadMsg").textContent = t;
+    health(); status();
+  }catch{
+    $("#uploadMsg").textContent = "Upload failed (check server)";
+  }
+};
+
+$("#send").onclick = async ()=>{
+  const text = ($("#q").value||"").trim(); if(!text) return;
+  addMsg(text,"user"); $("#q").value=""; addMsg("…","bot");
+  try{
+    const r = await fetch(API_BASE()+"/api/chat", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ message: text })
+    });
+    const j = await r.json();
+    $("#log").lastChild.textContent = j.reply || "No reply.";
+  }catch(e){
+    $("#log").lastChild.textContent = "Connection error.";
+  }
+};
+
+// initial load
+health(); status();
+</script>
+</body>
+</html>

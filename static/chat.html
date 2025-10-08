@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Policy Assistant</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Arial;margin:0;display:grid;grid-template-rows:auto 1fr auto;height:100vh;background:#f8fafc}
+  header,footer{padding:10px 14px;background:#fff;border-bottom:1px solid #e5e7eb}
+  footer{border-top:1px solid #e5e7eb;border-bottom:none}
+  #log{padding:12px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:820px;padding:10px 12px;border-radius:12px}
+  .user{align-self:flex-end;background:#2563eb;color:#fff}
+  .bot{align-self:flex-start;background:#e5e7eb}
+  form{display:flex;gap:8px}
+  input{flex:1;padding:10px;border:1px solid #d1d5db;border-radius:10px}
+  button{background:#2563eb;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+  <header><b>Policy Assistant</b> <span id="api" style="color:#6b7280;font-weight:500"></span></header>
+  <div id="log"></div>
+  <footer>
+    <form id="f">
+      <input id="q" placeholder="Ask about the policy…" autocomplete="off" />
+      <button>Send</button>
+    </form>
+  </footer>
+
+<script>
+// Read ?api=... from the iframe src (fallback to same origin)
+const params = new URLSearchParams(location.search);
+const API_BASE = params.get("api") || "";
+document.getElementById('api').textContent = API_BASE ? ` · API: ${API_BASE}` : "";
+
+const log = document.getElementById('log');
+const add = (t,c)=>{const d=document.createElement('div');d.className='msg '+c;d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;};
+
+document.getElementById('f').onsubmit = async (e)=>{
+  e.preventDefault();
+  const q = document.getElementById('q');
+  const text = (q.value||"").trim(); if(!text) return;
+  add(text,'user'); q.value=''; add('…','bot');
+  try{
+    const r = await fetch((API_BASE||"") + "/api/chat", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({message:text})
+    });
+    const j = await r.json();
+    log.lastChild.textContent = j.reply || 'No reply.';
+  }catch{ log.lastChild.textContent = 'Network error.'; }
+};
+</script>
+</body>
+</html>
