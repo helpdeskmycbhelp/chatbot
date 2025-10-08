@@ -1,0 +1,10 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.0
+python-multipart==0.0.17
+openai==1.48.0
+faiss-cpu==1.8.0.post1
+pypdf==5.0.1
+numpy==1.26.4
+aiofiles==23.2.1
+tiktoken==0.7.0
+pydantic==2.9.2
